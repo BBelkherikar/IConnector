@@ -1,0 +1,29 @@
+<project default="all">
+
+    <target name="clean">
+        <delete dir="build"/>
+        <delete dir="repository"/>
+    </target>
+
+    <target name="compile">
+        <mkdir dir="build/classes"/>
+        <javac srcdir="src" destdir="build/classes" target="1.8" source="1.8" debug="true" debuglevel="lines,vars,source">
+            <classpath>
+                <fileset dir="D:\Softwares\MyNewSoftwares\ManifoldCF\MCF-JARS\OutPutConnector"> 
+                    <include name="*.jar"/> 
+                </fileset>
+            </classpath>
+        </javac>
+    </target>
+
+    <target name="jar" depends="compile">
+        <mkdir dir="build/jar"/>
+        <jar destfile="build/jar/CustomRepo-Connector.jar">
+            <fileset dir="build/classes"/>
+            <fileset dir="resources"/>
+        </jar>
+    </target>
+    
+    <target name="all" depends="jar"/>
+    
+</project>
