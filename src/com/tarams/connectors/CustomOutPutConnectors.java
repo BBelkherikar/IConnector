@@ -5,59 +5,51 @@ import java.util.List;
 import java.util.Locale;
 
 import org.apache.manifoldcf.agents.interfaces.ServiceInterruption;
+import org.apache.manifoldcf.agents.output.BaseOutputConnector;
 import org.apache.manifoldcf.agents.system.Logging;
 import org.apache.manifoldcf.core.interfaces.ConfigParams;
 import org.apache.manifoldcf.core.interfaces.IHTTPOutput;
 import org.apache.manifoldcf.core.interfaces.IPostParameters;
 import org.apache.manifoldcf.core.interfaces.IThreadContext;
 import org.apache.manifoldcf.core.interfaces.ManifoldCFException;
-import org.apache.manifoldcf.crawler.connectors.BaseRepositoryConnector;
 import org.apache.manifoldcf.examples.docs4u.D4UException;
 import org.apache.manifoldcf.examples.docs4u.D4UFactory;
 import org.apache.manifoldcf.examples.docs4u.Docs4UAPI;
 
-public class CustomRepoConnector extends BaseRepositoryConnector {
+public class CustomOutPutConnectors extends BaseOutputConnector {
 
 	protected final static String PARAMETER_REPOSITORY_ROOT = "rootdirectory"; 
 	protected final static long SESSION_EXPIRATION_MILLISECONDS = 300000L; 
 	protected String rootDirectory = null;  
 	protected Docs4UAPI session = null; 
 	protected long sessionExpiration = -1L;
-	//	Save activity
+
+	/** Save activity */
 	protected final static String ACTIVITY_SAVE = "save";
-	//	Delete activity 
+	/** Delete activity */
 	protected final static String ACTIVITY_DELETE = "delete";
 
-	public CustomRepoConnector() {
+
+	public CustomOutPutConnectors() {
 		super();
 	}
 
-
-	/** Return the list of activities that this connector supports (i.e. writes into the log).
-	 *@return the list.
-	 */
 	@Override
 	public String[] getActivitiesList() {
 		return new String[]{ACTIVITY_SAVE,ACTIVITY_DELETE};
 	}
 
-	/** Test the connection and Returns a string describing the connection integrity.
-	 *@return the connection's status as a displayable string.
-	 */
 	@Override
 	public String check() throws ManifoldCFException {
 		try {
-			// Get or establish the session
-			Docs4UAPI currentSession = getSession();
-			// Check session integrity
-			try {
+				Docs4UAPI currentSession = getSession();
+			try{
 				currentSession.sanityCheck();
 			}
 			catch (D4UException e) {
 				Logging.ingest.warn("Docs4U: Error checking repository: "+e.getMessage(),e);
 				return "Error: "+e.getMessage();
 			}
-			// If it passed, return "everything ok" message
 			return super.check();
 		}
 		catch (ServiceInterruption e) {
@@ -89,17 +81,13 @@ public class CustomRepoConnector extends BaseRepositoryConnector {
 	@Override
 	public void outputConfigurationBody(IThreadContext threadContext, IHTTPOutput out, Locale locale,
 			ConfigParams parameters, String tabName) throws ManifoldCFException, IOException {
+		// TODO Auto-generated method stub
 		if(tabName.equals("Repository")) {
 			out.println("RootDirectory: <input type=\"text\" name=\"rootdirectory\"/>");
 		}
 		super.outputConfigurationBody(threadContext, out, locale, parameters, tabName);
 	}
 
-
-
-	/** This method is periodically called for all connectors that are connected but not
-	 * in active use.
-	 */
 	@Override
 	public void poll() throws ManifoldCFException {
 		if (session != null) {
@@ -110,7 +98,7 @@ public class CustomRepoConnector extends BaseRepositoryConnector {
 
 	@Override
 	public String processConfigurationPost(IThreadContext threadContext, IPostParameters variableContext,
-			ConfigParams parameters) throws ManifoldCFException {
+			ConfigParams parameters)throws ManifoldCFException {
 		String repositoryRoot = variableContext.getParameter(PARAMETER_REPOSITORY_ROOT);
 		System.out.println("repositoryRoot::"+"\t"+repositoryRoot);
 		if (repositoryRoot != null) {
@@ -126,26 +114,31 @@ public class CustomRepoConnector extends BaseRepositoryConnector {
 		super.viewConfiguration(threadContext, out, locale, parameters);
 	}
 
+
+
+	/** Expire any current session.
+	 */
+	protected void expireSession() {
+		session = null;
+		sessionExpiration = -1L;
+	}
+
+
 	/** Get the current session, or create one if not valid.
 	 */
 	protected Docs4UAPI getSession() throws ManifoldCFException, ServiceInterruption {
-		if (session == null) {
-			//	       We need to establish a new session
-			try {
-				session = D4UFactory.makeAPI(rootDirectory); 
+		if (session == null){
+			try{
+				session = D4UFactory.makeAPI(rootDirectory);
+
 			}
-			catch (D4UException e){
+			catch (D4UException e) {
 				Logging.ingest.warn("Docs4U: Session setup error: "+e.getMessage(),e);
 				throw new ManifoldCFException("Session setup error: "+e.getMessage(),e);
 			}
 		}
 		sessionExpiration = System.currentTimeMillis() + SESSION_EXPIRATION_MILLISECONDS;
 		return session;
-	}
-
-	protected void expireSession() {
-		session = null;
-		sessionExpiration = -1L;
 	}
 
 }
