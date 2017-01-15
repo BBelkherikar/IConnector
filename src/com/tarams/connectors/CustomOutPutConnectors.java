@@ -19,6 +19,18 @@ import org.apache.manifoldcf.examples.docs4u.Docs4UAPI;
 public class CustomOutPutConnectors extends BaseOutputConnector {
 
 	protected final static String PARAMETER_REPOSITORY_ROOT = "rootdirectory"; 
+	
+//	Database properties
+	protected final static String PARAMETER_USERNAME = "userName";
+	protected final static String PARAMETER_PASSWORD = "password";
+	
+	protected final static String PARAMETER_HOST_NAME = "hostName";
+	protected final static String PARAMETER_PORT = "port";
+	protected final static String PARAMETER_SERVICE_NAME = "serviceName";
+	protected final static String PARAMETER_SID = "sid";
+	
+	protected final static String PARAMETER_TABLE_NAME = "tableName";
+	
 	protected final static long SESSION_EXPIRATION_MILLISECONDS = 300000L; 
 	protected String rootDirectory = null;  
 	protected Docs4UAPI session = null; 
@@ -81,9 +93,19 @@ public class CustomOutPutConnectors extends BaseOutputConnector {
 	@Override
 	public void outputConfigurationBody(IThreadContext threadContext, IHTTPOutput out, Locale locale,
 			ConfigParams parameters, String tabName) throws ManifoldCFException, IOException {
-		// TODO Auto-generated method stub
+
 		if(tabName.equals("Repository")) {
-			out.println("RootDirectory: <input type=\"text\" name=\"rootdirectory\"/>");
+			
+			out.println("<div> RootDirectory: <input type=\"text\" name=\"rootdirectory\"/> </div>");
+			
+//			Database  properties
+			out.println("<div> HostName:    <input type=\"text\" name=\"hostName\"/> </div>");
+			out.println("<div> Port:        <input type=\"text\" name=\"port\"/>  </div>");
+			out.println("<div> UserName:    <input type=\"text\" name=\"userName\"/>  </div>");
+			out.println("<div> Password:    <input type=\"text\" name=\"password\"/> </div>");
+			out.println("<div> ServiceName: <input type=\"text\" name=\"serviceName\"/>  </div>");
+			out.println("<div> SID: <input type=\"text\" name=\"sid\"/>  </div>");
+			out.println("<div> TableName:   <input type=\"text\" name=\"tableName\"/>  </div>");
 		}
 		super.outputConfigurationBody(threadContext, out, locale, parameters, tabName);
 	}
@@ -100,9 +122,29 @@ public class CustomOutPutConnectors extends BaseOutputConnector {
 	public String processConfigurationPost(IThreadContext threadContext, IPostParameters variableContext,
 			ConfigParams parameters)throws ManifoldCFException {
 		String repositoryRoot = variableContext.getParameter(PARAMETER_REPOSITORY_ROOT);
-		System.out.println("repositoryRoot::"+"\t"+repositoryRoot);
+		
+//		Database properties
+		String userName=variableContext.getParameter(PARAMETER_USERNAME);
+		String password=variableContext.getParameter(PARAMETER_PASSWORD);
+		
+		String hostName=variableContext.getParameter(PARAMETER_HOST_NAME);
+		String port=variableContext.getParameter(PARAMETER_PORT);
+		String serviceName=variableContext.getParameter(PARAMETER_SERVICE_NAME);
+		String sid=variableContext.getParameter(PARAMETER_SID);
+		
+		String tableName=variableContext.getParameter(PARAMETER_TABLE_NAME);
+		
 		if (repositoryRoot != null) {
 			parameters.setParameter(PARAMETER_REPOSITORY_ROOT,repositoryRoot);
+			parameters.setParameter(PARAMETER_USERNAME, userName);
+			parameters.setParameter(PARAMETER_PASSWORD,password);
+			
+			parameters.setParameter(PARAMETER_HOST_NAME, hostName);
+			parameters.setParameter(PARAMETER_PORT,port);
+			parameters.setParameter(PARAMETER_TABLE_NAME,tableName);
+			
+			parameters.setParameter(PARAMETER_SID, sid);
+			parameters.setParameter(PARAMETER_SERVICE_NAME,serviceName);
 		}
 		return null;
 	}
@@ -110,7 +152,18 @@ public class CustomOutPutConnectors extends BaseOutputConnector {
 	@Override
 	public void viewConfiguration(IThreadContext threadContext, IHTTPOutput out, Locale locale, ConfigParams parameters)
 			throws ManifoldCFException, IOException {
-		out.print("RootDirectory:"+"\t"+parameters.getParameter(PARAMETER_REPOSITORY_ROOT));
+		out.print("<div> RootDirectory:"+"\t"+parameters.getParameter(PARAMETER_REPOSITORY_ROOT)+"</div>");
+		
+		out.print("<div> Username:"+"\t"+parameters.getParameter(PARAMETER_USERNAME)+"</div>");
+		out.print("<div> password:"+"\t"+parameters.getParameter(PARAMETER_PASSWORD)+"</div>");
+		
+		out.print("<div> HostName:"+"\t"+parameters.getParameter(PARAMETER_HOST_NAME)+"</div>");
+		out.print("<div> Port:"+"\t"+parameters.getParameter(PARAMETER_PORT)+"</div>");
+		
+		out.print("<div> ServiceName:"+"\t"+parameters.getParameter(PARAMETER_SERVICE_NAME)+"</div>");
+		out.print("<div> SID:"+"\t"+parameters.getParameter(PARAMETER_SID)+"</div>");
+		
+		out.print("<div> TableName:"+"\t"+parameters.getParameter(PARAMETER_TABLE_NAME)+"</div>");
 		super.viewConfiguration(threadContext, out, locale, parameters);
 	}
 
