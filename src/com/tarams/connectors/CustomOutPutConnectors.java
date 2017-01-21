@@ -1,36 +1,47 @@
 package com.tarams.connectors;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+import org.apache.manifoldcf.agents.interfaces.IOutputAddActivity;
+import org.apache.manifoldcf.agents.interfaces.IOutputNotifyActivity;
+import org.apache.manifoldcf.agents.interfaces.RepositoryDocument;
 import org.apache.manifoldcf.agents.interfaces.ServiceInterruption;
 import org.apache.manifoldcf.agents.output.BaseOutputConnector;
 import org.apache.manifoldcf.agents.system.Logging;
+import org.apache.manifoldcf.agents.system.ManifoldCF;
 import org.apache.manifoldcf.core.interfaces.ConfigParams;
+import org.apache.manifoldcf.core.interfaces.Configuration;
+import org.apache.manifoldcf.core.interfaces.ConfigurationNode;
 import org.apache.manifoldcf.core.interfaces.IHTTPOutput;
 import org.apache.manifoldcf.core.interfaces.IPostParameters;
 import org.apache.manifoldcf.core.interfaces.IThreadContext;
 import org.apache.manifoldcf.core.interfaces.ManifoldCFException;
+import org.apache.manifoldcf.core.interfaces.ThreadContextFactory;
+import org.apache.manifoldcf.core.interfaces.VersionContext;
 import org.apache.manifoldcf.examples.docs4u.D4UException;
 import org.apache.manifoldcf.examples.docs4u.D4UFactory;
 import org.apache.manifoldcf.examples.docs4u.Docs4UAPI;
 
+import com.tarams.dao.DatabaseManager;
+
 public class CustomOutPutConnectors extends BaseOutputConnector {
 
 	protected final static String PARAMETER_REPOSITORY_ROOT = "rootdirectory"; 
-	
-//	Database properties
+
+	//	Database properties
 	protected final static String PARAMETER_USERNAME = "userName";
 	protected final static String PARAMETER_PASSWORD = "password";
-	
+
 	protected final static String PARAMETER_HOST_NAME = "hostName";
 	protected final static String PARAMETER_PORT = "port";
 	protected final static String PARAMETER_SERVICE_NAME = "serviceName";
 	protected final static String PARAMETER_SID = "sid";
-	
+
 	protected final static String PARAMETER_TABLE_NAME = "tableName";
-	
+
 	protected final static long SESSION_EXPIRATION_MILLISECONDS = 300000L; 
 	protected String rootDirectory = null;  
 	protected Docs4UAPI session = null; 
@@ -41,6 +52,8 @@ public class CustomOutPutConnectors extends BaseOutputConnector {
 	/** Delete activity */
 	protected final static String ACTIVITY_DELETE = "delete";
 
+	/** Ingestion activity */
+	public final static String INGEST_ACTIVITY = "document ingest";
 
 	public CustomOutPutConnectors() {
 		super();
@@ -54,7 +67,9 @@ public class CustomOutPutConnectors extends BaseOutputConnector {
 	@Override
 	public String check() throws ManifoldCFException {
 		try {
-				Docs4UAPI currentSession = getSession();
+
+
+			Docs4UAPI currentSession = getSession();
 			try{
 				currentSession.sanityCheck();
 			}
@@ -95,10 +110,10 @@ public class CustomOutPutConnectors extends BaseOutputConnector {
 			ConfigParams parameters, String tabName) throws ManifoldCFException, IOException {
 
 		if(tabName.equals("Repository")) {
-			
+
 			out.println("<div> RootDirectory: <input type=\"text\" name=\"rootdirectory\"/> </div>");
-			
-//			Database  properties
+
+			//			Database  properties
 			out.println("<div> HostName:    <input type=\"text\" name=\"hostName\"/> </div>");
 			out.println("<div> Port:        <input type=\"text\" name=\"port\"/>  </div>");
 			out.println("<div> UserName:    <input type=\"text\" name=\"userName\"/>  </div>");
@@ -122,27 +137,27 @@ public class CustomOutPutConnectors extends BaseOutputConnector {
 	public String processConfigurationPost(IThreadContext threadContext, IPostParameters variableContext,
 			ConfigParams parameters)throws ManifoldCFException {
 		String repositoryRoot = variableContext.getParameter(PARAMETER_REPOSITORY_ROOT);
-		
-//		Database properties
+
+		//		Database properties
 		String userName=variableContext.getParameter(PARAMETER_USERNAME);
 		String password=variableContext.getParameter(PARAMETER_PASSWORD);
-		
+
 		String hostName=variableContext.getParameter(PARAMETER_HOST_NAME);
 		String port=variableContext.getParameter(PARAMETER_PORT);
 		String serviceName=variableContext.getParameter(PARAMETER_SERVICE_NAME);
 		String sid=variableContext.getParameter(PARAMETER_SID);
-		
+
 		String tableName=variableContext.getParameter(PARAMETER_TABLE_NAME);
-		
+
 		if (repositoryRoot != null) {
 			parameters.setParameter(PARAMETER_REPOSITORY_ROOT,repositoryRoot);
 			parameters.setParameter(PARAMETER_USERNAME, userName);
 			parameters.setParameter(PARAMETER_PASSWORD,password);
-			
+
 			parameters.setParameter(PARAMETER_HOST_NAME, hostName);
 			parameters.setParameter(PARAMETER_PORT,port);
 			parameters.setParameter(PARAMETER_TABLE_NAME,tableName);
-			
+
 			parameters.setParameter(PARAMETER_SID, sid);
 			parameters.setParameter(PARAMETER_SERVICE_NAME,serviceName);
 		}
@@ -153,19 +168,26 @@ public class CustomOutPutConnectors extends BaseOutputConnector {
 	public void viewConfiguration(IThreadContext threadContext, IHTTPOutput out, Locale locale, ConfigParams parameters)
 			throws ManifoldCFException, IOException {
 		out.print("<div> RootDirectory:"+"\t"+parameters.getParameter(PARAMETER_REPOSITORY_ROOT)+"</div>");
-		
+
 		out.print("<div> Username:"+"\t"+parameters.getParameter(PARAMETER_USERNAME)+"</div>");
 		out.print("<div> password:"+"\t"+parameters.getParameter(PARAMETER_PASSWORD)+"</div>");
-		
+
 		out.print("<div> HostName:"+"\t"+parameters.getParameter(PARAMETER_HOST_NAME)+"</div>");
 		out.print("<div> Port:"+"\t"+parameters.getParameter(PARAMETER_PORT)+"</div>");
-		
+
 		out.print("<div> ServiceName:"+"\t"+parameters.getParameter(PARAMETER_SERVICE_NAME)+"</div>");
 		out.print("<div> SID:"+"\t"+parameters.getParameter(PARAMETER_SID)+"</div>");
-		
+
 		out.print("<div> TableName:"+"\t"+parameters.getParameter(PARAMETER_TABLE_NAME)+"</div>");
+
+		out.print("<div> DataBasename:"+"\t"+ManifoldCF.getMasterDatabaseName()+"</div>");
+		out.print("<div> Username:"+"\t"+ManifoldCF.getMasterDatabaseUsername()+"</div>");
+		out.print("<div> Password:"+"\t"+ManifoldCF.getMasterDatabasePassword()+"</div>");
+
+
 		super.viewConfiguration(threadContext, out, locale, parameters);
 	}
+
 
 
 
@@ -193,5 +215,139 @@ public class CustomOutPutConnectors extends BaseOutputConnector {
 		sessionExpiration = System.currentTimeMillis() + SESSION_EXPIRATION_MILLISECONDS;
 		return session;
 	}
+
+
+
+
+
+
+	@Override
+	public void noteJobComplete(IOutputNotifyActivity activities) throws ManifoldCFException, ServiceInterruption {
+		System.out.println("==in noteJobComplete==");
+		super.noteJobComplete(activities);
+	}
+
+
+	/** Request arbitrary connector information.
+	 * This method is called directly from the API in order to allow API users to perform any one of several
+	 * connector-specific queries.  These are usually used to create external UI's.  The connector will be
+	 * connected before this method is called.
+	 *@param output is the response object, to be filled in by this method.
+	 *@param command is the command, which is taken directly from the API request.
+	 *@return true if the resource is found, false if not.  In either case, output may be filled in.
+	 */
+	@Override
+	public boolean requestInfo(Configuration output, String command)
+			throws ManifoldCFException
+	{
+		// Look for the commands we know about
+		System.out.println("==in requestInfo==");
+		if (command.equals("metadata"))
+		{
+			// Use a try/catch to capture errors from repository communication
+			try
+			{
+
+				// Get the metadata names
+				String[] metadataNames = getMetadataNames();
+				// Code these up in the output, in a form that yields decent JSON
+				int i = 0;
+				while (i < metadataNames.length)
+				{
+					String metadataName = metadataNames[i++];
+					// Construct an appropriate node
+					ConfigurationNode node = new ConfigurationNode("metadata");
+					ConfigurationNode child = new ConfigurationNode("name");
+					child.setValue(metadataName);
+					node.addChild(node.getChildCount(),child);
+					output.addChild(output.getChildCount(),node);
+				}
+			}
+			catch (ServiceInterruption e)
+			{
+				ManifoldCF.createServiceInterruptionNode(output,e);
+			}
+			catch (ManifoldCFException e)
+			{
+				ManifoldCF.createErrorNode(output,e);
+			}
+		}
+		else
+			return super.requestInfo(output,command);
+		return true;
+	}
+
+	/** Get an ordered list of metadata names.
+	 */
+	protected String[] getMetadataNames()
+			throws ManifoldCFException, ServiceInterruption
+	{
+		System.out.println("in getMetadataNames");
+		Docs4UAPI currentSession = getSession();
+		try
+		{
+			String[] rval = currentSession.getMetadataNames();
+			for(String val:rval) {
+				System.out.println("getMetadataNames"+val);
+			}
+			java.util.Arrays.sort(rval);
+			return rval;
+		}
+		catch (InterruptedException e)
+		{
+			throw new ManifoldCFException(e.getMessage(),e,ManifoldCFException.INTERRUPTED);
+		}
+		catch (D4UException e)
+		{
+			throw new ManifoldCFException(e.getMessage(),e);
+		}
+	}
+
+
+
+ @Override
+public void install(IThreadContext threadContext) throws ManifoldCFException {
+	 
+	 DatabaseManager dbDatabaseManager=new DatabaseManager(threadContext);
+	 boolean checkTableExistance=false;
+	 if(checkTableExistance){
+		 dbDatabaseManager.destroy();
+		 System.out.println("**--Table deleted  successfully--**");
+	 }else{
+	 dbDatabaseManager.initialize();
+	 System.out.println("---Table deleted  successfully--");
+	 }
+}
+
+	public int addOrReplaceDocumentWithException(String documentURI, VersionContext outputDescription, RepositoryDocument document, String authorityNameString, IOutputAddActivity activities) throws ManifoldCFException, ServiceInterruption, IOException {
+
+		System.out.println("title=="+document.getFileName());
+		System.out.println("createddate=="+document.getCreatedDate());
+		System.out.println("Modified date=="+document.getModifiedDate());
+		System.out.println("File Size=="+document.getOriginalSize());
+
+		String fileName=document.getFileName();
+		Date createdDate=document.getCreatedDate();
+		Date modifiedDate=document.getModifiedDate();
+		Long fileSize=document.getOriginalSize();
+
+		IThreadContext threadContext = ThreadContextFactory.make();
+		
+		DatabaseManager databaseManager=new DatabaseManager(threadContext);
+		databaseManager.insertFileInfo(fileName, createdDate, modifiedDate, fileSize);
+		System.out.println("--------------------------show file info start--");
+		databaseManager.showFileInfo(fileName);
+		System.out.println("--------------------------show file info end----");
+//		databaseManager.showAllFileInfo();
+		
+		return 0;
+	}
+	
+	@Override
+	public void deinstall(IThreadContext threadContext) throws ManifoldCFException {
+		// TODO Auto-generated method stub
+		super.deinstall(threadContext);
+	}
+
 
 }
