@@ -1,9 +1,10 @@
 package com.tarams.connectors;
 
 import java.io.IOException;
-import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import org.apache.manifoldcf.agents.interfaces.IOutputAddActivity;
 import org.apache.manifoldcf.agents.interfaces.IOutputNotifyActivity;
@@ -19,13 +20,16 @@ import org.apache.manifoldcf.core.interfaces.IHTTPOutput;
 import org.apache.manifoldcf.core.interfaces.IPostParameters;
 import org.apache.manifoldcf.core.interfaces.IThreadContext;
 import org.apache.manifoldcf.core.interfaces.ManifoldCFException;
+import org.apache.manifoldcf.core.interfaces.StringSet;
 import org.apache.manifoldcf.core.interfaces.ThreadContextFactory;
 import org.apache.manifoldcf.core.interfaces.VersionContext;
 import org.apache.manifoldcf.examples.docs4u.D4UException;
 import org.apache.manifoldcf.examples.docs4u.D4UFactory;
 import org.apache.manifoldcf.examples.docs4u.Docs4UAPI;
 
-import com.tarams.dao.DatabaseManager;
+import com.tarams.dao.DatabaseConstants;
+import com.tarams.dao.PostgresDatabaseManager;
+import com.tarams.vo.FileInfo;
 
 public class CustomOutPutConnectors extends BaseOutputConnector {
 
@@ -67,8 +71,6 @@ public class CustomOutPutConnectors extends BaseOutputConnector {
 	@Override
 	public String check() throws ManifoldCFException {
 		try {
-
-
 			Docs4UAPI currentSession = getSession();
 			try{
 				currentSession.sanityCheck();
@@ -206,8 +208,7 @@ public class CustomOutPutConnectors extends BaseOutputConnector {
 			try{
 				session = D4UFactory.makeAPI(rootDirectory);
 
-			}
-			catch (D4UException e) {
+			}catch (D4UException e) {
 				Logging.ingest.warn("Docs4U: Session setup error: "+e.getMessage(),e);
 				throw new ManifoldCFException("Session setup error: "+e.getMessage(),e);
 			}
@@ -238,22 +239,17 @@ public class CustomOutPutConnectors extends BaseOutputConnector {
 	 */
 	@Override
 	public boolean requestInfo(Configuration output, String command)
-			throws ManifoldCFException
-	{
+			throws ManifoldCFException {
 		// Look for the commands we know about
 		System.out.println("==in requestInfo==");
-		if (command.equals("metadata"))
-		{
+		if (command.equals("metadata")){
 			// Use a try/catch to capture errors from repository communication
-			try
-			{
-
+			try {
 				// Get the metadata names
 				String[] metadataNames = getMetadataNames();
 				// Code these up in the output, in a form that yields decent JSON
 				int i = 0;
-				while (i < metadataNames.length)
-				{
+				while (i < metadataNames.length) {
 					String metadataName = metadataNames[i++];
 					// Construct an appropriate node
 					ConfigurationNode node = new ConfigurationNode("metadata");
@@ -263,12 +259,10 @@ public class CustomOutPutConnectors extends BaseOutputConnector {
 					output.addChild(output.getChildCount(),node);
 				}
 			}
-			catch (ServiceInterruption e)
-			{
+			catch (ServiceInterruption e){
 				ManifoldCF.createServiceInterruptionNode(output,e);
 			}
-			catch (ManifoldCFException e)
-			{
+			catch (ManifoldCFException e){
 				ManifoldCF.createErrorNode(output,e);
 			}
 		}
@@ -279,45 +273,40 @@ public class CustomOutPutConnectors extends BaseOutputConnector {
 
 	/** Get an ordered list of metadata names.
 	 */
-	protected String[] getMetadataNames()
-			throws ManifoldCFException, ServiceInterruption
-	{
+	protected String[] getMetadataNames() throws ManifoldCFException, ServiceInterruption {
 		System.out.println("in getMetadataNames");
 		Docs4UAPI currentSession = getSession();
-		try
-		{
+		try{
 			String[] rval = currentSession.getMetadataNames();
 			for(String val:rval) {
 				System.out.println("getMetadataNames"+val);
 			}
 			java.util.Arrays.sort(rval);
 			return rval;
-		}
-		catch (InterruptedException e)
-		{
+		}catch (InterruptedException e){
 			throw new ManifoldCFException(e.getMessage(),e,ManifoldCFException.INTERRUPTED);
 		}
-		catch (D4UException e)
-		{
+		catch (D4UException e){
 			throw new ManifoldCFException(e.getMessage(),e);
 		}
 	}
 
 
+	@Override
+	public void install(IThreadContext threadContext) throws ManifoldCFException {
 
- @Override
-public void install(IThreadContext threadContext) throws ManifoldCFException {
-	 
-	 DatabaseManager dbDatabaseManager=new DatabaseManager(threadContext);
-	 boolean checkTableExistance=false;
-	 if(checkTableExistance){
-		 dbDatabaseManager.destroy();
-		 System.out.println("**--Table deleted  successfully--**");
-	 }else{
-	 dbDatabaseManager.initialize();
-	 System.out.println("---Table deleted  successfully--");
-	 }
-}
+		PostgresDatabaseManager postgresDatabaseManager=new PostgresDatabaseManager(threadContext, DatabaseConstants.DATABASE_NAME, DatabaseConstants.DATABASE_USER_NAME, DatabaseConstants.DATABASE_USER_PASSWORD);
+		postgresDatabaseManager.openDatabase();
+		postgresDatabaseManager.beginTransaction();
+		StringSet allTables=postgresDatabaseManager.getAllTables(null, null);
+		if(!allTables.contains(DatabaseConstants.DATABASE_TABLE_NAME)){
+			postgresDatabaseManager.createDatabaseTable();
+		}else{
+			System.out.println("Table already exist with name"+DatabaseConstants.DATABASE_TABLE_NAME);
+		}
+		postgresDatabaseManager.endTransaction();
+		postgresDatabaseManager.closeDatabase();
+	}
 
 	public int addOrReplaceDocumentWithException(String documentURI, VersionContext outputDescription, RepositoryDocument document, String authorityNameString, IOutputAddActivity activities) throws ManifoldCFException, ServiceInterruption, IOException {
 
@@ -326,28 +315,49 @@ public void install(IThreadContext threadContext) throws ManifoldCFException {
 		System.out.println("Modified date=="+document.getModifiedDate());
 		System.out.println("File Size=="+document.getOriginalSize());
 
-		String fileName=document.getFileName();
-		Date createdDate=document.getCreatedDate();
-		Date modifiedDate=document.getModifiedDate();
-		Long fileSize=document.getOriginalSize();
+		FileInfo fileInfo=new FileInfo();
+		fileInfo.setFileName(document.getFileName());
+		fileInfo.setFileCreatedDate(document.getCreatedDate());
+		fileInfo.setFileModifiedDate(document.getModifiedDate());
+		fileInfo.setFileSize(document.getOriginalSize());
 
 		IThreadContext threadContext = ThreadContextFactory.make();
-		
-		DatabaseManager databaseManager=new DatabaseManager(threadContext);
-		databaseManager.insertFileInfo(fileName, createdDate, modifiedDate, fileSize);
-		System.out.println("--------------------------show file info start--");
-		databaseManager.showFileInfo(fileName);
-		System.out.println("--------------------------show file info end----");
-//		databaseManager.showAllFileInfo();
-		
+		PostgresDatabaseManager postgresDatabaseManager=new PostgresDatabaseManager(threadContext, DatabaseConstants.DATABASE_NAME, DatabaseConstants.DATABASE_USER_NAME, DatabaseConstants.DATABASE_USER_PASSWORD);
+
+		postgresDatabaseManager.beginTransaction();
+		Map<String, Object> paramMap=new HashMap<String, Object>();
+		//		paramMap.put(DatabaseConstants.ID_FEILD, DatabaseConstants.getAutoIncrementalLong().getAndIncrement());
+		paramMap.put(DatabaseConstants.FILE_NAME, fileInfo.getFileName());
+		paramMap.put(DatabaseConstants.FILE_CREATED_DATE, fileInfo.getFileCreatedDate());
+		paramMap.put(DatabaseConstants.FILE_SIZE, fileInfo.getFileSize());
+		paramMap.put(DatabaseConstants.FILE_MODIFIED_DATE, fileInfo.getFileModifiedDate());
+		try {
+			postgresDatabaseManager.insertFileInfo(paramMap);
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		postgresDatabaseManager.endTransaction();
+
+		try{
+			postgresDatabaseManager.showAllFileInfo();
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		try{
+			String[] values=postgresDatabaseManager.getAllFileNames();
+			System.out.println("==getAllFileInfo=="+postgresDatabaseManager.printValues(values));
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+
 		return 0;
 	}
-	
+
 	@Override
 	public void deinstall(IThreadContext threadContext) throws ManifoldCFException {
-		// TODO Auto-generated method stub
 		super.deinstall(threadContext);
 	}
-
 
 }
