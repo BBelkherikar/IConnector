@@ -310,11 +310,6 @@ public class CustomOutPutConnectors extends BaseOutputConnector {
 
 	public int addOrReplaceDocumentWithException(String documentURI, VersionContext outputDescription, RepositoryDocument document, String authorityNameString, IOutputAddActivity activities) throws ManifoldCFException, ServiceInterruption, IOException {
 
-		System.out.println("title=="+document.getFileName());
-		System.out.println("createddate=="+document.getCreatedDate());
-		System.out.println("Modified date=="+document.getModifiedDate());
-		System.out.println("File Size=="+document.getOriginalSize());
-
 		FileInfo fileInfo=new FileInfo();
 		fileInfo.setFileName(document.getFileName());
 		fileInfo.setFileCreatedDate(document.getCreatedDate());
@@ -326,31 +321,32 @@ public class CustomOutPutConnectors extends BaseOutputConnector {
 
 		postgresDatabaseManager.beginTransaction();
 		Map<String, Object> paramMap=new HashMap<String, Object>();
-		//		paramMap.put(DatabaseConstants.ID_FEILD, DatabaseConstants.getAutoIncrementalLong().getAndIncrement());
+		//paramMap.put(DatabaseConstants.ID_FEILD, DatabaseConstants.getAutoIncrementalLong().getAndIncrement());
 		paramMap.put(DatabaseConstants.FILE_NAME, fileInfo.getFileName());
 		paramMap.put(DatabaseConstants.FILE_CREATED_DATE, fileInfo.getFileCreatedDate());
 		paramMap.put(DatabaseConstants.FILE_SIZE, fileInfo.getFileSize());
 		paramMap.put(DatabaseConstants.FILE_MODIFIED_DATE, fileInfo.getFileModifiedDate());
 		try {
 			postgresDatabaseManager.insertFileInfo(paramMap);
+			postgresDatabaseManager.endTransaction();
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
 
-		postgresDatabaseManager.endTransaction();
 
 		try{
 			postgresDatabaseManager.showAllFileInfo();
-		}catch (Exception e) {
-			e.printStackTrace();
+		}catch (ManifoldCFException mcfe) {
+			mcfe.printStackTrace();
 		}
 
 		try{
 			String[] values=postgresDatabaseManager.getAllFileNames();
-			System.out.println("==getAllFileInfo=="+postgresDatabaseManager.printValues(values));
-		}catch (Exception e) {
+			System.out.println("==getAllFileNames=="+postgresDatabaseManager.printValues(values));
+		}catch (ManifoldCFException e) {
 			e.printStackTrace();
 		}
+
 
 		return 0;
 	}
